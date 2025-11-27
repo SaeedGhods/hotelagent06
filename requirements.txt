@@ -1,0 +1,9 @@
+fastapi
+uvicorn
+twilio
+elevenlabs
+python-dotenv
+openai
+python-multipart
+requests
+
