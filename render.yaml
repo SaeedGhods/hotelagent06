@@ -13,4 +13,13 @@ services:
         sync: false
       - key: OPENAI_API_KEY
         sync: false
-
+      - key: ELEVENLABS_VOICE_ID
+        sync: false
+      - key: LLM_MODEL
+        sync: false
+        value: gpt-4o-mini
+      - key: HOTEL_NAME
+        sync: false
+        value: Grand Hotel
+      - key: SYSTEM_PROMPT
+        sync: false

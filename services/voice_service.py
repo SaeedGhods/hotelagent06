@@ -13,12 +13,13 @@ def generate_speech(text: str):
 
     client = ElevenLabs(api_key=api_key)
     
+    # Use environment variable for voice ID, default to "Rachel"
+    voice_id = os.getenv("ELEVENLABS_VOICE_ID", "Rachel")
+    
     # Generate audio
-    # using a popular pre-made voice
     audio = client.generate(
         text=text,
-        voice="Rachel", 
+        voice=voice_id, 
         model="eleven_monolingual_v1"
     )
     return audio
-
