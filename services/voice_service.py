@@ -1,5 +1,5 @@
 import os
-from elevenlabs import ElevenLabs
+from elevenlabs.client import ElevenLabs
 
 def generate_speech(text: str):
     """
@@ -17,6 +17,7 @@ def generate_speech(text: str):
     voice_id = os.getenv("ELEVENLABS_VOICE_ID", "Rachel")
     
     # Generate audio
+    # Updated for v1.0+ client syntax
     audio = client.generate(
         text=text,
         voice=voice_id, 
