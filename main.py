@@ -46,71 +46,23 @@ async def incoming_call(request: Request):
     Starts the conversation.
     """
     logger.info("Incoming call received")
+    
+    # ---------------------------------------------------------
+    # EMERGENCY DEBUG MODE
+    # If this still fails, the issue is fundamental (e.g. imports)
+    # ---------------------------------------------------------
     try:
         response = VoiceResponse()
+        # ABSOLUTE SIMPLEST RESPONSE POSSIBLE
+        # No variables, no ElevenLabs, no logic. Just XML.
+        response.say("Hello. If you can hear this, the connection is working.")
         
-        hotel_name = os.getenv("HOTEL_NAME", "Grand Hotel")
-        
-        # RESTORED: Using ElevenLabs for the welcome message
-        welcome_text = f"Thank you for calling {hotel_name}. How can I assist you today?"
-        encoded_text = urllib.parse.quote(welcome_text)
-        
-        # Gather speech input
-        gather = Gather(input="speech", action="/handle-speech", speechTimeout="auto")
-        
-        # Use the /speak endpoint to play ElevenLabs audio
-        # Note: We use the full URL to be safe, although relative often works
-        # If this fails, we will revert to .say()
-        # public_url = "https://hotel-agent-lhvi.onrender.com" 
-        # gather.play(f"{public_url}/speak?text={encoded_text}")
-        
-        # For now, let's keep it relative to see if Twilio resolves it correctly
-        gather.play(f"/speak?text={encoded_text}")
-        
-        response.append(gather)
-        
-        # If no input, end call or redirect
-        response.say("I didn't hear anything. Goodbye.")
-        
-        return Response(content=str(response), media_type="application/xml")
+        xml_str = str(response)
+        logger.info(f"Returning XML: {xml_str}")
+        return Response(content=xml_str, media_type="application/xml")
     except Exception as e:
-        logger.error(f"Error in /incoming-call: {str(e)}")
-        response = VoiceResponse()
-        response.say("System error.")
-        return Response(content=str(response), media_type="application/xml")
-
-@app.post("/handle-speech")
-async def handle_speech(request: Request, SpeechResult: str = Form(None)):
-    """
-    Handle speech input from Twilio Gather.
-    """
-    logger.info(f"Handle speech called. Result: {SpeechResult}")
-    try:
-        response = VoiceResponse()
-        
-        if SpeechResult:
-            # Get AI response
-            ai_text = get_ai_response(SpeechResult)
-            logger.info(f"AI Response: {ai_text}")
-            
-            # Respond and listen again
-            gather = Gather(input="speech", action="/handle-speech", speechTimeout="auto")
-            
-            encoded_ai_text = urllib.parse.quote(ai_text)
-            gather.play(f"/speak?text={encoded_ai_text}")
-            
-            response.append(gather)
-        else:
-            # If speech result is empty
-            response.say("I'm sorry, I didn't catch that. Could you please repeat?")
-            response.redirect("/incoming-call") 
-
-        return Response(content=str(response), media_type="application/xml")
-    except Exception as e:
-        logger.error(f"Error in /handle-speech: {str(e)}")
-        response = VoiceResponse()
-        response.say("An error occurred. Goodbye.")
-        return Response(content=str(response), media_type="application/xml")
+        logger.error(f"CRITICAL ERROR in /incoming-call: {str(e)}")
+        return Response(content="<?xml version='1.0' encoding='UTF-8'?><Response><Say>System Failure</Say></Response>", media_type="application/xml")
 
 if __name__ == "__main__":
     import uvicorn
