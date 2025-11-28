@@ -19,6 +19,7 @@ app = FastAPI()
 
 @app.get("/")
 async def root():
+    logger.info("Health check endpoint called")
     return {"message": "Hotel Agent is running"}
 
 @app.get("/speak")
@@ -26,6 +27,7 @@ async def speak(text: str):
     """
     Returns audio stream for the given text using ElevenLabs.
     """
+    logger.info(f"Generating speech for: {text}")
     try:
         audio_stream = generate_speech(text)
         if not audio_stream:
@@ -43,17 +45,23 @@ async def incoming_call(request: Request):
     Handle incoming calls from Twilio.
     Starts the conversation.
     """
+    logger.info("Incoming call received")
     try:
         response = VoiceResponse()
         
         hotel_name = os.getenv("HOTEL_NAME", "Grand Hotel")
-        welcome_text = f"Thank you for calling {hotel_name}. How can I assist you today?"
         
-        encoded_text = urllib.parse.quote(welcome_text)
+        # DEBUG: Using Say instead of Play to isolate ElevenLabs issues.
+        # If this works, the issue is likely the /speak endpoint or ElevenLabs config.
+        # welcome_text = f"Thank you for calling {hotel_name}. How can I assist you today?"
+        # encoded_text = urllib.parse.quote(welcome_text)
         
         # Gather speech input
         gather = Gather(input="speech", action="/handle-speech", speechTimeout="auto")
-        gather.play(f"/speak?text={encoded_text}")
+        
+        # Fallback to standard voice to ensure connection works
+        gather.say(f"Thank you for calling {hotel_name}. How can I assist you today?")
+        # gather.play(f"/speak?text={encoded_text}")
         
         response.append(gather)
         
@@ -63,9 +71,8 @@ async def incoming_call(request: Request):
         return Response(content=str(response), media_type="application/xml")
     except Exception as e:
         logger.error(f"Error in /incoming-call: {str(e)}")
-        # Return a fallback XML response
         response = VoiceResponse()
-        response.say("We are currently experiencing technical difficulties. Please try again later.")
+        response.say("System error.")
         return Response(content=str(response), media_type="application/xml")
 
 @app.post("/handle-speech")
@@ -73,23 +80,30 @@ async def handle_speech(request: Request, SpeechResult: str = Form(None)):
     """
     Handle speech input from Twilio Gather.
     """
+    logger.info(f"Handle speech called. Result: {SpeechResult}")
     try:
         response = VoiceResponse()
         
         if SpeechResult:
-            logger.info(f"Received speech: {SpeechResult}")
             # Get AI response
             ai_text = get_ai_response(SpeechResult)
-            encoded_ai_text = urllib.parse.quote(ai_text)
+            logger.info(f"AI Response: {ai_text}")
             
             # Respond and listen again
             gather = Gather(input="speech", action="/handle-speech", speechTimeout="auto")
+            
+            # Try to use ElevenLabs for the response, but if it fails, we might just hear silence
+            # You can uncomment this line to test purely with robot voice first:
+            # gather.say(ai_text) 
+            
+            encoded_ai_text = urllib.parse.quote(ai_text)
             gather.play(f"/speak?text={encoded_ai_text}")
+            
             response.append(gather)
         else:
             # If speech result is empty
             response.say("I'm sorry, I didn't catch that. Could you please repeat?")
-            response.redirect("/incoming-call") # Restart loop or handle differently
+            response.redirect("/incoming-call") 
 
         return Response(content=str(response), media_type="application/xml")
     except Exception as e:
