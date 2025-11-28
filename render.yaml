@@ -2,7 +2,8 @@ services:
   - type: web
     name: hotel-agent
     env: python
-    buildCommand: pip install -r requirements.txt
+    # FORCE upgrade of elevenlabs in the build command itself to bypass cache
+    buildCommand: pip install --upgrade --force-reinstall -r requirements.txt
     startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
     envVars:
       - key: TWILIO_ACCOUNT_SID
