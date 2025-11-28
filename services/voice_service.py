@@ -1,20 +1,33 @@
 import os
 import sys
-import pkg_resources
 
-# Debug: Print installed version immediately on import
+# DEBUG: Check installed packages without pkg_resources to avoid missing dep error
 try:
-    version = pkg_resources.get_distribution("elevenlabs").version
+    import importlib.metadata
+    version = importlib.metadata.version("elevenlabs")
     print(f"DEBUG: Installed elevenlabs version: {version}")
 except Exception as e:
     print(f"DEBUG: Could not determine elevenlabs version: {e}")
 
+# Try to handle ALL potential import styles because Render's environment is unpredictable
 try:
-    from elevenlabs import ElevenLabs
-    # Debug: Check what attributes exist on the class/module
-    print(f"DEBUG: ElevenLabs attributes: {dir(ElevenLabs)}")
+    # V1.0+ Client Style
+    from elevenlabs.client import ElevenLabs
+    HAS_CLIENT = True
+    print("DEBUG: Imported ElevenLabs client successfully")
 except ImportError:
-    print("DEBUG: Could not import ElevenLabs from elevenlabs")
+    HAS_CLIENT = False
+    print("DEBUG: Could not import elevenlabs.client.ElevenLabs")
+
+try:
+    # Legacy Style
+    from elevenlabs import generate, set_api_key
+    HAS_LEGACY = True
+    print("DEBUG: Imported legacy generate/set_api_key successfully")
+except ImportError:
+    HAS_LEGACY = False
+    print("DEBUG: Could not import legacy elevenlabs functions")
+
 
 def generate_speech(text: str):
     """
@@ -26,35 +39,36 @@ def generate_speech(text: str):
         print("Warning: ELEVENLABS_API_KEY not set")
         return None
 
-    try:
-        # ATTEMPT 1: Try v1.x client style
-        client = ElevenLabs(api_key=api_key)
-        
-        voice_id = os.getenv("ELEVENLABS_VOICE_ID", "Rachel")
-        
-        print(f"DEBUG: Attempting client.generate with voice {voice_id}")
-        audio = client.generate(
-            text=text,
-            voice=voice_id, 
-            model="eleven_monolingual_v1"
-        )
-        return audio
-        
-    except Exception as e:
-        print(f"DEBUG: v1.x client failed: {e}")
-        
-        # ATTEMPT 2: Fallback to v0.x style (static generate)
-        # Some older versions use: from elevenlabs import generate
+    voice_id = os.getenv("ELEVENLABS_VOICE_ID", "Rachel")
+
+    # STRATEGY 1: Use V1.0+ Client
+    if HAS_CLIENT:
         try:
-            from elevenlabs import generate, set_api_key
+            print(f"DEBUG: Using V1 Client for {voice_id}")
+            client = ElevenLabs(api_key=api_key)
+            audio = client.generate(
+                text=text,
+                voice=voice_id, 
+                model="eleven_monolingual_v1"
+            )
+            return audio
+        except Exception as e:
+            print(f"DEBUG: V1 Client execution failed: {e}")
+            # Do not return yet, try legacy as fallback if available
+
+    # STRATEGY 2: Use Legacy
+    if HAS_LEGACY:
+        try:
+            print(f"DEBUG: Using Legacy Generate for {voice_id}")
             set_api_key(api_key)
-            print("DEBUG: Attempting legacy static generate()")
             audio = generate(
                 text=text,
                 voice=voice_id,
                 model="eleven_monolingual_v1"
             )
             return audio
-        except Exception as e2:
-             print(f"DEBUG: Legacy generate failed too: {e2}")
-             return None
+        except Exception as e:
+            print(f"DEBUG: Legacy execution failed: {e}")
+    
+    print("ERROR: All ElevenLabs generation methods failed.")
+    return None
