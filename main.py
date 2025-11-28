@@ -51,17 +51,21 @@ async def incoming_call(request: Request):
         
         hotel_name = os.getenv("HOTEL_NAME", "Grand Hotel")
         
-        # DEBUG: Using Say instead of Play to isolate ElevenLabs issues.
-        # If this works, the issue is likely the /speak endpoint or ElevenLabs config.
-        # welcome_text = f"Thank you for calling {hotel_name}. How can I assist you today?"
-        # encoded_text = urllib.parse.quote(welcome_text)
+        # RESTORED: Using ElevenLabs for the welcome message
+        welcome_text = f"Thank you for calling {hotel_name}. How can I assist you today?"
+        encoded_text = urllib.parse.quote(welcome_text)
         
         # Gather speech input
         gather = Gather(input="speech", action="/handle-speech", speechTimeout="auto")
         
-        # Fallback to standard voice to ensure connection works
-        gather.say(f"Thank you for calling {hotel_name}. How can I assist you today?")
-        # gather.play(f"/speak?text={encoded_text}")
+        # Use the /speak endpoint to play ElevenLabs audio
+        # Note: We use the full URL to be safe, although relative often works
+        # If this fails, we will revert to .say()
+        # public_url = "https://hotel-agent-lhvi.onrender.com" 
+        # gather.play(f"{public_url}/speak?text={encoded_text}")
+        
+        # For now, let's keep it relative to see if Twilio resolves it correctly
+        gather.play(f"/speak?text={encoded_text}")
         
         response.append(gather)
         
@@ -91,10 +95,6 @@ async def handle_speech(request: Request, SpeechResult: str = Form(None)):
             
             # Respond and listen again
             gather = Gather(input="speech", action="/handle-speech", speechTimeout="auto")
-            
-            # Try to use ElevenLabs for the response, but if it fails, we might just hear silence
-            # You can uncomment this line to test purely with robot voice first:
-            # gather.say(ai_text) 
             
             encoded_ai_text = urllib.parse.quote(ai_text)
             gather.play(f"/speak?text={encoded_ai_text}")
